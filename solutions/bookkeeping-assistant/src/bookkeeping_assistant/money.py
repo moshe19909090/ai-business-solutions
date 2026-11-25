@@ -42,16 +42,26 @@ CENT: Final = Decimal("0.01")
 MAX_INTEGER_DIGITS: Final = 12
 """Upper bound on the integer part (below one trillion). Guards against absurd or garbled values."""
 
+MAX_AMOUNT_TEXT_LENGTH: Final = 64
+"""Longest accepted amount text after trimming. The longest valid amount,
+``"($ 999,999,999,999.99 )"``, is far shorter. This is defense in depth on top of the
+linear-time pattern below."""
+
+# Possessive quantifiers (`*+`, `++`) never give back what they matched. With plain `\s*`, the
+# four whitespace runs are separated only by optional tokens, so a long whitespace run before an
+# invalid character could be split between them in O(n^4) ways before failing. Possessive
+# matching is equivalent here, because the element after each run can never be whitespace or a
+# digit, so backtracking could never produce a different successful match. Matching is O(n).
 _AMOUNT_PATTERN: Final = re.compile(
     r"""
     ^
-    (?P<open>\()?\s*                                  # accounting negative: (12.00)
-    (?P<sign>[-+])?\s*                                # sign before the currency symbol
-    \$?\s*                                            # optional dollar sign
-    (?P<sign_after_symbol>[-+])?\s*                   # sign after the currency symbol: $-12.00
-    (?P<integer>[0-9]{1,3}(?:,[0-9]{3})+|[0-9]*)      # 1,234,567 or 1234567 (or empty for .50)
+    (?P<open>\()?\s*+                                 # accounting negative: (12.00)
+    (?P<sign>[-+])?\s*+                               # sign before the currency symbol
+    \$?\s*+                                           # optional dollar sign
+    (?P<sign_after_symbol>[-+])?\s*+                  # sign after the currency symbol: $-12.00
+    (?P<integer>[0-9]{1,3}(?:,[0-9]{3})++|[0-9]*+)    # 1,234,567 or 1234567 (or empty for .50)
     (?:\.(?P<fraction>[0-9]{1,2}))?                   # at most two decimal places
-    \s*(?P<close>\))?
+    \s*+(?P<close>\))?
     $
     """,
     re.VERBOSE | re.ASCII,  # ASCII: reject non-ASCII digits such as Arabic-Indic numerals
@@ -77,6 +87,8 @@ def parse_amount(raw: str) -> Decimal:
     text = raw.strip()
     if not text:
         raise AmountParseError("amount is empty")
+    if len(text) > MAX_AMOUNT_TEXT_LENGTH:
+        raise AmountParseError(f"amount text exceeds {MAX_AMOUNT_TEXT_LENGTH} characters")
 
     match = _AMOUNT_PATTERN.match(text)
     if match is None:

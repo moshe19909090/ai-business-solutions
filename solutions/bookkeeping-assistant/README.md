@@ -1,6 +1,7 @@
 # Bookkeeping Exception Assistant
 
-> **Status: Phase 1 of 7 (scaffold, domain models, money parsing).** Not yet runnable as a service.
+> **Status: Phase 2 of 7 (ingestion: CSV parsing and upload validation).** Not yet runnable as a
+> service.
 
 A local tool for independent US bookkeeping firms. You give it one client's bank-transaction
 export plus supporting documents (receipts, invoices). It returns a list of transactions and
@@ -50,8 +51,23 @@ src/bookkeeping_assistant/
   money.py    strict amount parsing (parse_amount) and the Money type
   models.py   domain models and enums (transactions, documents, matches, findings, evidence)
   config.py   ReviewConfig: thresholds, date windows, scoring weights
+  ingestion.py  transactions CSV parsing, upload validation (signatures, limits), hashing
 tests/unit/   unit tests for the above
+tests/fixtures/  synthetic test data only
 ```
+
+## Transactions CSV format
+
+UTF-8 (a BOM is fine), with a header row. Column names are case-insensitive; order does not matter.
+
+| Column | Required | Format |
+|---|---|---|
+| `date` | yes | `YYYY-MM-DD` or `MM/DD/YYYY` (US month-first) |
+| `description` | yes | non-empty text |
+| `amount` | yes | US format; negative = money out. `$`, `1,234.56`, and `(12.00)` accepted |
+| `transaction_id` | no | 1-64 chars: letters, digits, `. _ : -`. Must be unique. If blank, an ID is derived from the line number |
+
+Extra columns are kept as evidence but otherwise ignored. Limits: 5 MB, 2,000 rows. Documents: PDF, PNG, or JPEG (detected by file signature), up to 25 files of 10 MB each. Byte-identical uploads are processed once and reported as duplicates.
 
 ## Data handling
 

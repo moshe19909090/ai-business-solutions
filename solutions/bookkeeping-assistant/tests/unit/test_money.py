@@ -1,3 +1,4 @@
+import time
 from decimal import (
     ROUND_DOWN,
     ROUND_UP,
@@ -9,11 +10,14 @@ from decimal import (
     getcontext,
     localcontext,
 )
+from typing import Any
 
 import pytest
 from pydantic import BaseModel, ValidationError
 
 from bookkeeping_assistant.money import (
+    _AMOUNT_PATTERN,
+    MAX_AMOUNT_TEXT_LENGTH,
     MAX_INTEGER_DIGITS,
     MONEY_CONTEXT,
     AmountParseError,
@@ -250,3 +254,64 @@ def test_decimal_context_guard_runs_handler_in_money_context() -> None:
         decimal_context_guard("1", handler)  # type: ignore[arg-type]
 
     assert seen == [MONEY_CONTEXT.prec]
+
+
+# ----------------------------------------------------------------------------- bounded parsing
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        pytest.param(lambda n: "(" + " " * n + "x", id="paren-whitespace-junk"),
+        pytest.param(lambda n: "-" + " " * n + "x", id="sign-whitespace-junk"),
+        pytest.param(lambda n: "($" + " " * n + "1 x)", id="paren-dollar-whitespace"),
+        pytest.param(lambda n: "(-" + " \t" * n + "$x", id="mixed-whitespace"),
+        pytest.param(lambda n: "1" * n + "x", id="long-digits-junk"),
+        pytest.param(lambda n: "1" + ",123" * n + ",12", id="long-grouping-junk"),
+    ],
+)
+def test_amount_pattern_is_linear_on_pathological_input(build: Any) -> None:
+    """Regression: plain `\\s*` runs made these O(n^4). The old pattern needed ~30 s at n=200.
+
+    This tests the private pattern directly, so the regex fix itself is covered and not hidden
+    behind `MAX_AMOUNT_TEXT_LENGTH`.
+    """
+    text = build(200)
+
+    started = time.perf_counter()
+    match = _AMOUNT_PATTERN.match(text)
+    elapsed = time.perf_counter() - started
+
+    assert match is None
+    assert elapsed < 0.5
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "(" + " " * 62 + "x",  # just under the length limit: the regex itself must be fast
+        "-" + " " * 62 + "x",
+        "($" + " " * 58 + "1 x)",
+        "(" + " " * 10_000 + "x",  # over the length limit
+        "1" * 100_000,
+    ],
+)
+def test_parse_amount_rejects_pathological_input_quickly(raw: str) -> None:
+    started = time.perf_counter()
+    with pytest.raises(AmountParseError):
+        parse_amount(raw)
+
+    assert time.perf_counter() - started < 0.5
+
+
+def test_amount_text_length_boundary() -> None:
+    at_limit = "(" + " " * (MAX_AMOUNT_TEXT_LENGTH - 7) + "12.00)"
+    assert len(at_limit) == MAX_AMOUNT_TEXT_LENGTH
+
+    assert parse_amount(at_limit) == Decimal("-12.00")
+    with pytest.raises(AmountParseError, match="exceeds 64 characters"):
+        parse_amount("( " + at_limit[1:])
+
+
+def test_amount_length_limit_ignores_surrounding_whitespace() -> None:
+    assert parse_amount(" " * 1_000 + "$1,234.56" + "\t" * 1_000) == Decimal("1234.56")
