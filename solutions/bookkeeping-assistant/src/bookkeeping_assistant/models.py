@@ -182,6 +182,38 @@ class SourceDocument(DomainModel):
         return self
 
 
+class NormalizationIssue(StrEnum):
+    """A problem found while normalizing extracted fields. Values are a stable API contract.
+
+    Required fields (vendor, date, total) report `*_missing`. Optional fields (subtotal, tax,
+    tip, document number) are often legitimately absent, so they only report `*_invalid`.
+    Whether an issue becomes a reviewer-facing finding is decided by the validation rules.
+    """
+
+    EXTRACTION_FAILED = "extraction_failed"
+    DOCUMENT_UNREADABLE = "document_unreadable"
+    DOCUMENT_TYPE_MISSING = "document_type_missing"
+    DOCUMENT_TYPE_UNRECOGNIZED = "document_type_unrecognized"
+    VENDOR_MISSING = "vendor_missing"
+    VENDOR_INVALID = "vendor_invalid"
+    DATE_MISSING = "date_missing"
+    DATE_INVALID = "date_invalid"
+    DATE_AMBIGUOUS = "date_ambiguous"
+    TOTAL_MISSING = "total_missing"
+    TOTAL_INVALID = "total_invalid"
+    TOTAL_NOT_POSITIVE = "total_not_positive"
+    SUBTOTAL_INVALID = "subtotal_invalid"
+    TAX_INVALID = "tax_invalid"
+    TIP_INVALID = "tip_invalid"
+    CURRENCY_MISSING = "currency_missing"
+    CURRENCY_INVALID = "currency_invalid"
+    CURRENCY_AMBIGUOUS = "currency_ambiguous"
+    """A symbol shared by several currencies (``$``) with nothing explicit to resolve it, or
+    explicit indicators that disagree. The currency is left unset rather than guessed."""
+    CURRENCY_UNSUPPORTED = "currency_unsupported"
+    DOCUMENT_NUMBER_INVALID = "document_number_invalid"
+
+
 class NormalizedDocument(DomainModel):
     """Deterministically normalized view of a document's extracted fields."""
 
@@ -196,7 +228,7 @@ class NormalizedDocument(DomainModel):
     tip: Money | None = None
     currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
     document_number: str | None = None
-    issues: tuple[str, ...] = Field(
+    issues: tuple[NormalizationIssue, ...] = Field(
         default=(), description="Normalization problems, e.g. unparseable total."
     )
 

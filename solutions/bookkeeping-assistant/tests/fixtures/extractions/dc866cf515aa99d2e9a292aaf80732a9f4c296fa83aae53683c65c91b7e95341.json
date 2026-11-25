@@ -1,0 +1,39 @@
+{
+  "document_type": {
+    "value": "invoice",
+    "source_text": "invoice",
+    "page": 1
+  },
+  "vendor_name": {
+    "value": "Office Supply Depot, Inc.",
+    "source_text": "Office Supply Depot, Inc.",
+    "page": 1
+  },
+  "document_date": {
+    "value": "Feb 20, 2026",
+    "source_text": "Feb 20, 2026",
+    "page": 1
+  },
+  "total": {
+    "value": "$245.99",
+    "source_text": "$245.99",
+    "page": 1
+  },
+  "subtotal": {
+    "value": "$227.25",
+    "source_text": "$227.25",
+    "page": 1
+  },
+  "tax": {
+    "value": "$18.74",
+    "source_text": "$18.74",
+    "page": 1
+  },
+  "tip": null,
+  "currency": null,
+  "document_number": {
+    "value": "INV-2026-0042",
+    "source_text": "INV-2026-0042",
+    "page": 1
+  }
+}

@@ -19,6 +19,7 @@ from bookkeeping_assistant.models import (
     MatchResult,
     MatchStatus,
     MediaType,
+    NormalizationIssue,
     NormalizedDocument,
     Provenance,
     RuleRef,
@@ -269,11 +270,18 @@ def test_normalized_document_allows_missing_fields() -> None:
     document = NormalizedDocument(
         document_id="doc-1",
         document_type=DocumentType.UNREADABLE,
-        issues=("total_missing", "date_missing"),
+        issues=(NormalizationIssue.TOTAL_MISSING, NormalizationIssue.DATE_MISSING),
     )
 
     assert document.total is None
-    assert document.issues == ("total_missing", "date_missing")
+    assert document.model_dump(mode="json")["issues"] == ["total_missing", "date_missing"]
+
+
+def test_normalized_document_rejects_unknown_issue_codes() -> None:
+    with pytest.raises(ValidationError):
+        NormalizedDocument.model_validate(
+            {"document_id": "doc-1", "document_type": "receipt", "issues": ["made_up_issue"]}
+        )
 
 
 def test_normalized_document_money_fields_are_strict() -> None:

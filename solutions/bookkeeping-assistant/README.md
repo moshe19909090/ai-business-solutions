@@ -1,7 +1,7 @@
 # Bookkeeping Exception Assistant
 
-> **Status: Phase 2 of 7 (ingestion: CSV parsing and upload validation).** Not yet runnable as a
-> service.
+> **Status: Phase 3 of 7 (extraction schema, fake extractor, normalization).** Not yet runnable
+> as a service, and there is no OpenAI integration yet.
 
 A local tool for independent US bookkeeping firms. You give it one client's bank-transaction
 export plus supporting documents (receipts, invoices). It returns a list of transactions and
@@ -52,6 +52,10 @@ src/bookkeeping_assistant/
   models.py   domain models and enums (transactions, documents, matches, findings, evidence)
   config.py   ReviewConfig: thresholds, date windows, scoring weights
   ingestion.py  transactions CSV parsing, upload validation (signatures, limits), hashing
+  extraction/
+    schema.py   strict extraction contract (raw strings + quotes) and ExtractionResult
+    base.py     Extractor protocol and FakeExtractor (offline, fixtures keyed by SHA-256)
+  normalization.py  deterministic parsing of extracted fields into NormalizedDocument
 tests/unit/   unit tests for the above
 tests/fixtures/  synthetic test data only
 ```

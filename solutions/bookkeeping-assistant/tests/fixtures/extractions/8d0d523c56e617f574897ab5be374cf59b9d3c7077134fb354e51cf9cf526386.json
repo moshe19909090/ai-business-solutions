@@ -1,0 +1,20 @@
+{
+  "document_type": {
+    "value": "receipt",
+    "source_text": "receipt",
+    "page": 1
+  },
+  "vendor_name": null,
+  "document_date": null,
+  "total": {
+    "value": 12.4,
+    "source_text": "12.40",
+    "page": 1
+  },
+  "subtotal": null,
+  "tax": null,
+  "tip": null,
+  "currency": null,
+  "document_number": null,
+  "confidence": 0.99
+}

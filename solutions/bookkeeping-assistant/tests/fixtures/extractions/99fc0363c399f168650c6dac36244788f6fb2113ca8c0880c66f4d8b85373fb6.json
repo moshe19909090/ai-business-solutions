@@ -1,0 +1,31 @@
+{
+  "document_type": {
+    "value": "receipt",
+    "source_text": "receipt",
+    "page": 1
+  },
+  "vendor_name": {
+    "value": "Café Exemple",
+    "source_text": "Café Exemple",
+    "page": 1
+  },
+  "document_date": {
+    "value": "4 Mar 2026",
+    "source_text": "4 Mar 2026",
+    "page": 1
+  },
+  "total": {
+    "value": "€18,50",
+    "source_text": "€18,50",
+    "page": 1
+  },
+  "subtotal": null,
+  "tax": null,
+  "tip": null,
+  "currency": {
+    "value": "EUR",
+    "source_text": "EUR",
+    "page": 1
+  },
+  "document_number": null
+}
