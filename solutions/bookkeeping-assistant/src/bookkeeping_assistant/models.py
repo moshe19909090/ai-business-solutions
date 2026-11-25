@@ -109,6 +109,15 @@ class MatchStatus(StrEnum):
     UNMATCHED = "unmatched"
 
 
+class MatchAssumption(StrEnum):
+    """Uncertain document data a candidate relies on. Listed so it is never silently trusted."""
+
+    CURRENCY_UNCONFIRMED = "currency_unconfirmed"
+    """The document's currency is missing or ambiguous; its total was compared as US dollars."""
+    DATE_AMBIGUOUS = "date_ambiguous"
+    """The document date relied on an assumption, such as a two-digit year read as 20YY."""
+
+
 class AmbiguityReason(StrEnum):
     MULTIPLE_DOCUMENTS = "multiple_documents"
     """This transaction has two or more near-tied candidate documents."""
@@ -252,10 +261,23 @@ class MatchCandidate(DomainModel):
     transaction_id: NonEmptyStr
     document_id: NonEmptyStr
     breakdown: ScoreBreakdown
+    assumptions: tuple[MatchAssumption, ...] = Field(
+        default=(), description="Uncertain document data this candidate's score relies on."
+    )
+
+    @model_validator(mode="after")
+    def _assumptions_are_unique(self) -> Self:
+        if len(set(self.assumptions)) != len(self.assumptions):
+            raise ValueError("assumptions must not contain duplicates")
+        return self
 
 
 class MatchResult(DomainModel):
     """Matching outcome for one transaction.
+
+    An unmatched result may still list candidates, kept as evidence for review: documents
+    assigned to (or contested between) other transactions with clearly better scores, and
+    exact-amount documents from a clearly different merchant.
 
     Ambiguity has two causes, and both can apply at once:
     - `MULTIPLE_DOCUMENTS`: this transaction has at least two near-tied `candidates`.
@@ -272,7 +294,11 @@ class MatchResult(DomainModel):
     ambiguity_reasons: tuple[AmbiguityReason, ...] = ()
     competing_candidates: tuple[MatchCandidate, ...] = Field(
         default=(),
-        description="Other transactions' candidates for this transaction's contested documents.",
+        description=(
+            "Other transactions' candidates for this transaction's contested documents, highest"
+            " scores first. The matcher may cap this list; each competitor still has its own"
+            " ambiguous result."
+        ),
     )
 
     @model_validator(mode="after")
@@ -288,8 +314,8 @@ class MatchResult(DomainModel):
         if self.status is MatchStatus.MATCHED:
             if self.document_id is None or self.document_id not in self._candidate_document_ids:
                 raise ValueError("a matched result must reference one of its candidates")
-        elif self.document_id is not None or self.candidates:
-            raise ValueError("an unmatched result must have no document_id and no candidates")
+        elif self.document_id is not None:
+            raise ValueError("an unmatched result must have no document_id")
         return self
 
     @property

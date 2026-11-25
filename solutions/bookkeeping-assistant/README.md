@@ -1,6 +1,6 @@
 # Bookkeeping Exception Assistant
 
-> **Status: Phase 3 of 7 (extraction schema, fake extractor, normalization).** Not yet runnable
+> **Status: Phase 4 of 7 (deterministic matching engine).** Not yet runnable
 > as a service, and there is no OpenAI integration yet.
 
 A local tool for independent US bookkeeping firms. You give it one client's bank-transaction
@@ -56,6 +56,7 @@ src/bookkeeping_assistant/
     schema.py   strict extraction contract (raw strings + quotes) and ExtractionResult
     base.py     Extractor protocol and FakeExtractor (offline, fixtures keyed by SHA-256)
   normalization.py  deterministic parsing of extracted fields into NormalizedDocument
+  matching.py   deterministic scoring and conservative one-to-one assignment
 tests/unit/   unit tests for the above
 tests/fixtures/  synthetic test data only
 ```

@@ -15,6 +15,7 @@ from bookkeeping_assistant.models import (
     Evidence,
     Finding,
     FindingType,
+    MatchAssumption,
     MatchCandidate,
     MatchResult,
     MatchStatus,
@@ -402,6 +403,39 @@ def test_match_result_unmatched_valid() -> None:
     assert MatchResult(transaction_id="txn-0002", status=MatchStatus.UNMATCHED).candidates == ()
 
 
+def test_match_result_unmatched_keeps_candidates_lost_to_other_transactions() -> None:
+    result = MatchResult(
+        transaction_id="txn-0002",
+        status=MatchStatus.UNMATCHED,
+        candidates=(make_candidate("doc-a"),),
+    )
+
+    assert result.document_id is None
+    assert MatchResult.model_validate_json(result.model_dump_json()) == result
+
+
+def test_match_candidate_assumptions() -> None:
+    candidate = MatchCandidate(
+        transaction_id="txn-0002",
+        document_id="doc-a",
+        breakdown=make_breakdown(),
+        assumptions=(MatchAssumption.CURRENCY_UNCONFIRMED, MatchAssumption.DATE_AMBIGUOUS),
+    )
+
+    assert candidate.model_dump(mode="json")["assumptions"] == [
+        "currency_unconfirmed",
+        "date_ambiguous",
+    ]
+    assert make_candidate("doc-a").assumptions == ()
+    with pytest.raises(ValidationError, match="assumptions must not contain duplicates"):
+        MatchCandidate(
+            transaction_id="txn-0002",
+            document_id="doc-a",
+            breakdown=make_breakdown(),
+            assumptions=(MatchAssumption.DATE_AMBIGUOUS, MatchAssumption.DATE_AMBIGUOUS),
+        )
+
+
 _MULTIPLE = (AmbiguityReason.MULTIPLE_DOCUMENTS,)
 _SHARED = (AmbiguityReason.SHARED_DOCUMENT,)
 
@@ -480,7 +514,7 @@ _SHARED = (AmbiguityReason.SHARED_DOCUMENT,)
             (),
             "distinct documents",
         ),
-        (MatchStatus.UNMATCHED, None, ("doc-a",), (), (), "no document_id and no candidates"),
+        (MatchStatus.UNMATCHED, "doc-a", ("doc-a",), (), (), "must have no document_id"),
         (MatchStatus.UNMATCHED, None, (), _SHARED, (), "only allowed when ambiguous"),
     ],
 )
