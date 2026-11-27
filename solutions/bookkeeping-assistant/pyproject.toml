@@ -43,6 +43,11 @@ select = [
     "RUF",     # ruff-specific
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Tests carry synthetic Hebrew and other non-Latin text on purpose. Source code keeps the
+# confusable-character checks, so non-ASCII literals there must be deliberate (or \u-escaped).
+"tests/**" = ["RUF001", "RUF003"]
+
 # ---------------------------------------------------------------- mypy
 [tool.mypy]
 strict = true

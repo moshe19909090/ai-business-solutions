@@ -78,8 +78,9 @@ class DocumentExclusion(StrEnum):
     TOTAL_UNAVAILABLE = "total_unavailable"
     TOTAL_NOT_POSITIVE = "total_not_positive"
     DATE_UNAVAILABLE = "date_unavailable"
-    CURRENCY_NOT_USD = "currency_not_usd"
-    """The document states another currency, so its total cannot be compared with USD."""
+    CURRENCY_MISMATCH = "currency_mismatch"
+    """The document states a currency other than the account's. Nothing is converted, so its
+    total cannot be compared with the transactions."""
 
 
 class ExcludedDocument(DomainModel):
@@ -193,7 +194,7 @@ def _exclusions(document: NormalizedDocument) -> tuple[DocumentExclusion, ...]:
     if document.document_date is None:
         reasons.append(DocumentExclusion.DATE_UNAVAILABLE)
     if document.currency is not None and document.currency != SUPPORTED_CURRENCY:
-        reasons.append(DocumentExclusion.CURRENCY_NOT_USD)
+        reasons.append(DocumentExclusion.CURRENCY_MISMATCH)
     return tuple(reasons)
 
 

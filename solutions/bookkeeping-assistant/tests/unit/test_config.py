@@ -5,6 +5,13 @@ import pytest
 from pydantic import ValidationError
 
 from bookkeeping_assistant.config import ReviewConfig, ScoreWeights
+from bookkeeping_assistant.profiles import (
+    AccountProfile,
+    CsvEncoding,
+    DateOrder,
+    NumberFormat,
+    RegionalFormat,
+)
 
 
 def test_defaults() -> None:
@@ -176,3 +183,79 @@ def test_decimal_fields_ignore_caller_decimal_context(context: Context) -> None:
 
     assert str(config.missing_document_threshold) == "1234.56"
     assert config.amount_close_ratio == Decimal("0.0525")
+
+
+# ----------------------------------------------------------------------------- account currency
+
+
+def test_default_profiles_preserve_us_behaviour() -> None:
+    config = ReviewConfig()
+
+    assert config.account == AccountProfile(currency="USD")
+    assert config.regional == RegionalFormat(
+        date_order=DateOrder.MDY,
+        csv_encoding=CsvEncoding.UTF8,
+        number_format=NumberFormat.COMMA_GROUP_DOT_DECIMAL,
+    )
+
+
+def test_profiles_are_echoed_in_json() -> None:
+    payload = ReviewConfig().model_dump(mode="json")
+
+    assert payload["account"] == {"currency": "USD"}
+    assert payload["regional"] == {
+        "date_order": "mdy",
+        "csv_encoding": "utf-8",
+        "number_format": "1,234.56",
+    }
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        pytest.param({}, id="neither"),
+        pytest.param({"missing_document_threshold": "250.00"}, id="only-missing-threshold"),
+        pytest.param({"high_severity_delta": "200.00"}, id="only-delta"),
+    ],
+)
+def test_ils_account_requires_both_money_thresholds(overrides: dict[str, Any]) -> None:
+    data: dict[str, Any] = {"account": {"currency": "ILS"}, **overrides}
+
+    with pytest.raises(ValidationError, match="must be set explicitly for an account in ILS"):
+        ReviewConfig.model_validate(data)
+
+
+def test_ils_account_with_explicit_thresholds() -> None:
+    config = ReviewConfig.model_validate(
+        {
+            "account": {"currency": "ILS"},
+            "regional": {"date_order": "dmy", "csv_encoding": "windows-1255"},
+            "missing_document_threshold": "250.00",
+            "high_severity_delta": "200.00",
+        }
+    )
+
+    assert config.account.currency == "ILS"
+    assert config.regional.date_order is DateOrder.DMY
+    assert config.missing_document_threshold == Decimal("250.00")
+    assert ReviewConfig.model_validate_json(config.model_dump_json()) == config
+
+
+def test_explicit_threshold_equal_to_the_usd_default_is_accepted_for_ils() -> None:
+    """Setting a value explicitly is what counts, even if it equals the US-dollar default."""
+    config = ReviewConfig.model_validate(
+        {
+            "account": {"currency": "ILS"},
+            "missing_document_threshold": "75.00",
+            "high_severity_delta": "50.00",
+        }
+    )
+
+    assert config.missing_document_threshold == Decimal("75.00")
+
+
+def test_usd_account_keeps_threshold_defaults() -> None:
+    config = ReviewConfig.model_validate({"account": {"currency": "USD"}})
+
+    assert config.missing_document_threshold == Decimal("75.00")
+    assert config.high_severity_delta == Decimal("50.00")

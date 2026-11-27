@@ -354,8 +354,8 @@ def test_only_outflows_are_matched() -> None:
         (doc("d1", total="0.00"), (DocumentExclusion.TOTAL_NOT_POSITIVE,)),
         (doc("d1", total="-12.40"), (DocumentExclusion.TOTAL_NOT_POSITIVE,)),
         (doc("d1", on=None), (DocumentExclusion.DATE_UNAVAILABLE,)),
-        (doc("d1", currency="EUR"), (DocumentExclusion.CURRENCY_NOT_USD,)),
-        (doc("d1", currency="CAD"), (DocumentExclusion.CURRENCY_NOT_USD,)),
+        (doc("d1", currency="EUR"), (DocumentExclusion.CURRENCY_MISMATCH,)),
+        (doc("d1", currency="CAD"), (DocumentExclusion.CURRENCY_MISMATCH,)),
         (
             doc("d1", total=None, on=None, document_type=DocumentType.UNREADABLE),
             (

@@ -4,17 +4,22 @@ Every value here is a heuristic default, not an accounting, audit, or tax standa
 configuration is echoed in each review report so findings can always be traced to the
 parameters that produced them.
 
+Money amounts here (thresholds, tolerances) are in the **account currency** (`account.currency`).
+The two money thresholds default to US-dollar values, so a non-USD account must set both
+explicitly. There are no invented defaults for other currencies.
+
 Environment-based settings (API keys, extractor selection) are added in Phase 6.
 """
 
 import math
 from decimal import Decimal
-from typing import Annotated, Self
+from typing import Annotated, Final, Self
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, WrapValidator, model_validator
 
 from bookkeeping_assistant.models import SCORE_TOLERANCE, Score, reject_bool
 from bookkeeping_assistant.money import Money, decimal_context_guard, reject_float
+from bookkeeping_assistant.profiles import DEFAULT_ACCOUNT_CURRENCY, AccountProfile, RegionalFormat
 
 NonNegativeMoney = Annotated[Money, Field(ge=0)]
 Ratio = Annotated[
@@ -27,6 +32,9 @@ Ratio = Annotated[
 Weight = Score
 """Same bounds, bool rejection, and rounding tolerance as the scores the weights produce."""
 WindowDays = Annotated[int, BeforeValidator(reject_bool), Field(ge=0, le=366)]
+
+ACCOUNT_CURRENCY_THRESHOLDS: Final = ("missing_document_threshold", "high_severity_delta")
+"""Money thresholds whose defaults are US-dollar amounts. A non-USD account must set them."""
 
 
 class _Config(BaseModel):
@@ -54,10 +62,17 @@ class ScoreWeights(_Config):
 class ReviewConfig(_Config):
     """Tunable parameters for matching and validation."""
 
+    # Account and regional format: separate concerns, both declared, never inferred
+    account: AccountProfile = Field(default_factory=AccountProfile)
+    regional: RegionalFormat = Field(default_factory=RegionalFormat)
+
     # Missing documents
     missing_document_threshold: NonNegativeMoney = Field(
         default=Decimal("75.00"),
-        description="Outflows at or above this amount without a document are flagged.",
+        description=(
+            "Outflows at or above this amount (in the account currency) without a document are"
+            " flagged. The default is a US-dollar amount."
+        ),
     )
 
     # Date windows: how far a document date may fall before or after the posted date
@@ -75,7 +90,13 @@ class ReviewConfig(_Config):
         default=Decimal("0.20"),
         description="Transaction above the document total by up to this ratio gets a tip hint.",
     )
-    high_severity_delta: NonNegativeMoney = Decimal("50.00")
+    high_severity_delta: NonNegativeMoney = Field(
+        default=Decimal("50.00"),
+        description=(
+            "Amount differences above this (in the account currency) are high severity. The"
+            " default is a US-dollar amount."
+        ),
+    )
     high_severity_ratio: Ratio = Decimal("0.10")
     arithmetic_tolerance: NonNegativeMoney = Field(
         default=Decimal("0.01"),
@@ -86,3 +107,16 @@ class ReviewConfig(_Config):
     vendor_min_similarity: Weight = 0.6
     ambiguity_margin: Weight = 0.05
     weights: ScoreWeights = Field(default_factory=ScoreWeights)
+
+    @model_validator(mode="after")
+    def _thresholds_set_for_account_currency(self) -> Self:
+        if self.account.currency == DEFAULT_ACCOUNT_CURRENCY:
+            return self
+        explicit = self.model_fields_set
+        missing = [name for name in ACCOUNT_CURRENCY_THRESHOLDS if name not in explicit]
+        if missing:
+            raise ValueError(
+                f"{', '.join(missing)} must be set explicitly for an account in"
+                f" {self.account.currency}: the defaults are US-dollar amounts"
+            )
+        return self

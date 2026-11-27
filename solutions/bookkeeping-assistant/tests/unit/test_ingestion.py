@@ -2,6 +2,7 @@ import hashlib
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -24,6 +25,7 @@ from bookkeeping_assistant.ingestion import (
     sanitize_filename,
 )
 from bookkeeping_assistant.models import Direction, MediaType
+from bookkeeping_assistant.profiles import CsvEncoding, DateOrder
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 
@@ -779,3 +781,15 @@ def test_syntax_error_after_cap_respects_the_limit() -> None:
 
     assert len(issues) == MAX_REPORTED_ISSUES + 1
     assert "stopped reporting" in issues[-1].message
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [{"date_order": DateOrder.DMY}, {"encoding": CsvEncoding.WINDOWS_1255}],
+)
+def test_parse_transactions_csv_rejects_unimplemented_regional_formats(
+    kwargs: dict[str, Any],
+) -> None:
+    """Contract stub: only mdy + utf-8 are implemented until the i18n batch lands."""
+    with pytest.raises(NotImplementedError):
+        parse_transactions_csv(b"date,description,amount\n2026-03-02,X,-1.00\n", **kwargs)

@@ -29,6 +29,7 @@ from bookkeeping_assistant.extraction.schema import (
 from bookkeeping_assistant.ingestion import parse_csv_date
 from bookkeeping_assistant.models import DocumentType, NormalizationIssue, NormalizedDocument
 from bookkeeping_assistant.money import AmountParseError, parse_amount
+from bookkeeping_assistant.profiles import DateOrder
 
 SUPPORTED_CURRENCY: Final = "USD"
 MAX_DATE_TEXT_LENGTH: Final = 40
@@ -303,8 +304,15 @@ def normalize_currency(text: str) -> str:
 # ----------------------------------------------------------------------------- documents
 
 
-def normalize_extraction(result: ExtractionResult) -> NormalizedDocument:
-    """Normalize one extraction result. Never raises for bad extracted content."""
+def normalize_extraction(
+    result: ExtractionResult, *, date_order: DateOrder = DateOrder.MDY
+) -> NormalizedDocument:
+    """Normalize one extraction result. Never raises for bad extracted content.
+
+    `date_order` is the declared order for numeric dates (``RegionalFormat.date_order``).
+    """
+    if date_order is not DateOrder.MDY:  # contract stub: day-first support lands in the i18n batch
+        raise NotImplementedError("date_order other than mdy is not supported yet")
     if result.status is not ExtractionStatus.OK or result.extraction is None:
         return NormalizedDocument(
             document_id=result.document_id,

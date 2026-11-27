@@ -40,6 +40,7 @@ from bookkeeping_assistant.models import (
     SourceDocument,
 )
 from bookkeeping_assistant.money import AmountParseError, parse_amount
+from bookkeeping_assistant.profiles import CsvEncoding, DateOrder
 
 MEBIBYTE: Final = 1024 * 1024
 
@@ -212,9 +213,15 @@ def parse_csv_date(value: str) -> date:
 
 
 def parse_transactions_csv(
-    data: bytes, *, limits: IngestionLimits = DEFAULT_LIMITS
+    data: bytes,
+    *,
+    limits: IngestionLimits = DEFAULT_LIMITS,
+    date_order: DateOrder = DateOrder.MDY,
+    encoding: CsvEncoding = CsvEncoding.UTF8,
 ) -> ParsedTransactions:
     """Parse and validate the canonical transactions CSV.
+
+    `date_order` and `encoding` come from `RegionalFormat`; they are declared, never guessed.
 
     Raises:
         LimitExceededError: the file is over `max_csv_bytes` or has more than `max_csv_rows`
@@ -224,6 +231,9 @@ def parse_transactions_csv(
             then a truncation note), not just the first. Issues collected before an
             unrecoverable syntax error are kept, and the syntax error is appended.
     """
+    # Contract stub: day-first dates and other encodings land in the i18n batch.
+    if date_order is not DateOrder.MDY or encoding is not CsvEncoding.UTF8:
+        raise NotImplementedError("only date_order=mdy and encoding=utf-8 are supported yet")
     if len(data) > limits.max_csv_bytes:
         raise LimitExceededError("csv_bytes", limits.max_csv_bytes)
     records = _records(_decode_csv(data))

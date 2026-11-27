@@ -24,6 +24,7 @@ from bookkeeping_assistant.normalization import (
     normalize_vendor,
     parse_document_date,
 )
+from bookkeeping_assistant.profiles import DateOrder
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 I = NormalizationIssue  # noqa: E741 - short alias keeps the expectation tables readable
@@ -820,3 +821,9 @@ def test_fixture_documents_through_fake_extractor_and_normalization() -> None:
         ExtractionErrorCode.INVALID_OUTPUT,
         ExtractionErrorCode.NO_FIXTURE,
     ]
+
+
+def test_normalize_extraction_rejects_undeclared_date_order_support() -> None:
+    """Contract stub: only month-first is implemented until the i18n batch lands."""
+    with pytest.raises(NotImplementedError):
+        normalize_extraction(ok_result(), date_order=DateOrder.DMY)
